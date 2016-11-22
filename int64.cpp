@@ -18,7 +18,7 @@ int main(int argc, char* argv[ ]) {
         p = ouf.readLong();
         if (j != p) {
             string ending = englishEnding(n);
-            quitf(_wa, "%d%s numbers differ: expected \"" I64 "\", found \"" I64 "\"",
+            quitf(_wa, "%d%s numbers differ: expected '" I64 "', found '" I64 "'",
                 n, ending.c_str(), j, p
             );
         } else if (n <= 5) {
@@ -33,7 +33,7 @@ int main(int argc, char* argv[ ]) {
         ans.readLong();
         extraInAnsCount++;
     }
-    
+
     int extraInOufCount = 0;
     while (!ouf.seekEof()) {
         ouf.readLong();
@@ -44,17 +44,17 @@ int main(int argc, char* argv[ ]) {
         quitf(_wa, "Answer contains longer sequence [length = %d], but output contains %d elements",
             n + extraInAnsCount, n
         );
-    
+
     if (extraInOufCount > 0)
         quitf(_wa, "Output contains longer sequence [length = %d], but answer contains %d elements",
             n + extraInOufCount, n
         );
-    
+
     if (n == 1)
-        quitf(_ok, "\"" I64 "\"", p);
+        quitf(_ok, "'" I64 "'", p);
     else if (n <= 5) {
         string s = compress(firstElems.str());
-        quitf(_ok, "%d numbers: \"%s\"", n, s.c_str());
+        quitf(_ok, "%d numbers: '%s'", n, s.c_str());
     } else
         quitf(_ok, "%d numbers", n);
 }

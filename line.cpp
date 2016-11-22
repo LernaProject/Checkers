@@ -49,7 +49,7 @@ int main(int argc, char* argv[ ]) {
             p = compress(p);
             j = compress(j);
             string ending = englishEnding(n);
-            quitf(_wa, "%d%s lines differ: expected \"%s\", found \"%s\"",
+            quitf(_wa, "%d%s lines differ: expected '%s', found '%s'",
                 n, ending.c_str(), j.c_str(), p.c_str()
             );
         }
