@@ -2,20 +2,35 @@
 #include <sstream>
 #include <string>
 
+using namespace std;
+
+char toLower(char c) {
+    return c >= 'A' && c <= 'Z' ? char(c | 0x20) : c;
+}
+
+bool icompare(const string& a, const string& b) {
+    if (a.length() != b.length())
+        return false;
+    for (size_t i = 0; i < a.length(); i++)
+        if (toLower(a[i]) != toLower(b[i]))
+            return false;
+    return true;
+}
+
 int main(int argc, char* argv[ ]) {
-    setName("compare sequences of tokens");
+    setName("compare sequences of tokens (case-insensitive)");
     registerTestlibCmd(argc, argv);
 
     int n = 0;
-    std::string j, p;
-    std::ostringstream repr;
+    string j, p;
+    ostringstream repr;
 
     while (!ans.seekEof()) {
         n++;
         ans.readTokenTo(j);
         ouf.readTokenTo(p);
 
-        if (j != p)
+        if (!icompare(j, p))
             expectedButFound(
                 _wa, compress(j).c_str(), compress(p).c_str(),
                 "%d%s tokens differ", n, englishEnding(n).c_str()
