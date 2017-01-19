@@ -8,16 +8,16 @@ void readBigIntTo(string& s, InStream& stream) {
     stream.readTokenTo(s);
     size_t i = s.front() == '-';
     if (i == s.length())
-        stream.quit(_pe, "A bigint expected, but '-' found");
+        stream.quit(_pe, "An integer expected, but '-' found");
     if (s[i] == '0' && s.length() > 1)
         stream.quitf(_pe, "Leading zeroes are not allowed: '%s'", compress(s).c_str());
     for (; i != s.length(); i++)
         if (s[i] < '0' || s[i] > '9')
-            stream.quitf(_pe, "A bigint expected, but '%s' found", compress(s).c_str());
+            stream.quitf(_pe, "An integer expected, but '%s' found", compress(s).c_str());
 }
 
 int main(int argc, char* argv[ ]) {
-    setName("compare sequences of signed big integers");
+    setName("compare sequences of arbitrary-length signed integers");
     registerTestlibCmd(argc, argv);
 
     int n = 0;
