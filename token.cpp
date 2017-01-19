@@ -13,7 +13,7 @@ int main(int argc, char* argv[ ]) {
         n++;
         ans.readTokenTo(j);
         ouf.readTokenTo(p);
-        
+
         if (j != p) {
             j = compress(j);
             p = compress(p);

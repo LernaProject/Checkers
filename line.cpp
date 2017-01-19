@@ -8,7 +8,7 @@ int main(int argc, char* argv[ ]) {
     setName("compare lines of text");
     registerTestlibCmd(argc, argv);
 
-    size_t n = 0;
+    int n = 0;
     string p, j, a, b;
     while (!ouf.eof() && !ans.eof()) {
         ouf.readLineTo(p);
