@@ -15,19 +15,23 @@ define abbrev
 	@$1 $2
 endef
 
-all: $(OBJECTS)
+all: $(OBJECTS) $(BUILD)/ok
 
 $(BUILD)/%: %.cpp $(HEADERS)
 	@mkdir -p $(@D)
-	$(call abbrev,g++ $< -o $@,$(CXXFLAGS))
+	$(call abbrev,$(CXX) $< -o $@,$(CXXFLAGS))
 
 $(BUILD)/float%: float.cpp $(HEADERS)
 	@mkdir -p $(@D)
-	$(call abbrev,g++ $< -o $@ -DPREC=$*,$(CXXFLAGS))
+	$(call abbrev,$(CXX) $< -o $@ -DPREC=$*,$(CXXFLAGS))
 
 $(BUILD)/%: %.sh
 	@mkdir -p $(@D)
 	ln -s ../$< $@
+
+$(BUILD)/ok: $(shell which true)
+	@mkdir -p $(@D)
+	ln -s $< $@
 
 clean:
 	rm -rf $(BUILD)
