@@ -26,12 +26,12 @@ int main(int argc, char* argv[ ]) {
             m = 0;
         } else if (jnl && !pnl)
             quitf(
-                _pe, "Extra %d%s token in %d%s line: '%s'",
+                _wa, "Extra %d%s token in %d%s line: '%s'",
                 m, englishEnding(m).c_str(), n, englishEnding(n).c_str(), compress(p).c_str()
             );
         else if (pnl && !jnl)
             quitf(
-                _pe, "Missing %d%s token in %d%s line: '%s' expected",
+                _wa, "Missing %d%s token in %d%s line: '%s' expected",
                 m, englishEnding(m).c_str(), n, englishEnding(n).c_str(), compress(j).c_str()
             );
         else {
@@ -49,6 +49,10 @@ int main(int argc, char* argv[ ]) {
                 repr << p;
             }
         }
+    }
+    if (!ouf.seekEof()) {
+        ouf.readTokenTo(p);
+        quitf(_wa, "Extra tokens in participant's output: '%s'", compress(p).c_str());
     }
 
     if (lastLine == 1)

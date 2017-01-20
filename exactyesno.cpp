@@ -19,10 +19,7 @@ bool readYesNo(InStream& stream) {
 }
 
 int main(int argc, char* argv[ ]) {
-    setName(
-        "compare sequences of '" YES "' or '" NO "' (case-insensitive), "
-        "returning PE if their lengths differ"
-    );
+    setName("compare sequences of '" YES "' or '" NO "' (case-insensitive)");
     registerTestlibCmd(argc, argv);
 
     int n = 0;
@@ -32,6 +29,9 @@ int main(int argc, char* argv[ ]) {
     while (!ans.seekEof()) {
         n++;
         j = readYesNo(ans);
+        quitif(ouf.seekEof(),
+            _wa, "Unexpected EOF in participant's output: '%s' expected", j ? YES : NO
+        );
         p = readYesNo(ouf);
 
         if (j != p)
@@ -41,6 +41,10 @@ int main(int argc, char* argv[ ]) {
 
         if (n <= 5)
             mask |= p << n;
+    }
+    if (!ouf.seekEof()) {
+        p = readYesNo(ouf);
+        quitf(_wa, "Extra words in participant's output: '%s'", p ? YES : NO);
     }
 
     if (n == 1)

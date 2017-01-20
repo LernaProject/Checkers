@@ -25,7 +25,10 @@ bool icompare(const string& a, const string& b) {
 }
 
 int main(int argc, char* argv[ ]) {
-    setName("compare lines as sequences of tokens (case-insensitive)");
+    setName(
+        "compare lines as sequences of tokens (case-insensitive), "
+        "returning PE if their lengths differ"
+    );
     registerTestlibCmd(argc, argv);
 
     int n = 1, m = 0, lastLine = 0;

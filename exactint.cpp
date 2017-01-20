@@ -17,10 +17,7 @@ void readBigIntTo(string& s, InStream& stream) {
 }
 
 int main(int argc, char* argv[ ]) {
-    setName(
-        "compare sequences of arbitrary-length signed integers, "
-        "returning PE if their lengths differ"
-    );
+    setName("compare sequences of arbitrary-length signed integers");
     registerTestlibCmd(argc, argv);
 
     int n = 0;
@@ -30,6 +27,9 @@ int main(int argc, char* argv[ ]) {
     while (!ans.seekEof()) {
         n++;
         readBigIntTo(j, ans);
+        quitif(ouf.seekEof(),
+            _wa, "Unexpected EOF in participant's output: '%s' expected", compress(j).c_str()
+        );
         readBigIntTo(p, ouf);
 
         if (j != p)
@@ -43,6 +43,10 @@ int main(int argc, char* argv[ ]) {
                 repr << ' ';
             repr << p;
         }
+    }
+    if (!ouf.seekEof()) {
+        readBigIntTo(p, ouf);
+        quitf(_wa, "Extra numbers in participant's output: '%s'", compress(p).c_str());
     }
 
     if (n == 1)

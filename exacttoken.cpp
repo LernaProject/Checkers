@@ -3,7 +3,7 @@
 #include <string>
 
 int main(int argc, char* argv[ ]) {
-    setName("compare sequences of tokens, returning PE if their lengths differ");
+    setName("compare sequences of tokens");
     registerTestlibCmd(argc, argv);
 
     int n = 0;
@@ -13,6 +13,9 @@ int main(int argc, char* argv[ ]) {
     while (!ans.seekEof()) {
         n++;
         ans.readTokenTo(j);
+        quitif(ouf.seekEof(),
+            _wa, "Unexpected EOF in participant's output: '%s' expected", compress(j).c_str()
+        );
         ouf.readTokenTo(p);
 
         if (j != p)
@@ -26,6 +29,10 @@ int main(int argc, char* argv[ ]) {
                 repr << ' ';
             repr << p;
         }
+    }
+    if (!ouf.seekEof()) {
+        ouf.readTokenTo(p);
+        quitf(_wa, "Extra tokens in participant's output: '%s'", compress(p).c_str());
     }
 
     if (n == 1)
