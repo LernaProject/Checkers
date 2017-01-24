@@ -1,9 +1,10 @@
 .PHONY: all clean
 
+SRC   = src
 BUILD = bin
 
-HEADERS := $(wildcard *.h)
-OBJECTS := $(foreach EXT,cpp sh,$(patsubst %.$(EXT),$(BUILD)/%,$(wildcard *.$(EXT))))
+HEADERS := $(wildcard $(SRC)/*.h)
+OBJECTS := $(foreach EXT,cpp sh,$(patsubst $(SRC)/%.$(EXT),$(BUILD)/%,$(wildcard $(SRC)/*.$(EXT))))
 OBJECTS := $(filter-out $(BUILD)/float,$(OBJECTS))
 OBJECTS += $(foreach N,$(shell seq 1 10),$(BUILD)/float$N)
 CXXFLAGS := -std=c++11 -O2
@@ -17,15 +18,15 @@ endef
 
 all: $(OBJECTS) $(BUILD)/ok
 
-$(BUILD)/%: %.cpp $(HEADERS)
+$(BUILD)/%: $(SRC)/%.cpp $(HEADERS)
 	@mkdir -p $(@D)
 	$(call abbrev,$(CXX) $< -o $@,$(CXXFLAGS))
 
-$(BUILD)/float%: float.cpp $(HEADERS)
+$(BUILD)/float%: $(SRC)/float.cpp $(HEADERS)
 	@mkdir -p $(@D)
 	$(call abbrev,$(CXX) $< -o $@ -DPREC=$*,$(CXXFLAGS))
 
-$(BUILD)/%: %.sh
+$(BUILD)/%: $(SRC)/%.sh
 	@mkdir -p $(@D)
 	ln -s ../$< $@
 
