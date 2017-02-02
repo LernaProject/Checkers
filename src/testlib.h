@@ -22,10 +22,10 @@
 #define _TESTLIB_H_
 
 /*
- * Copyright (c) 2005-2015
+ * Copyright (c) 2005-2016
  */
 
-#define VERSION "0.9.9"
+#define VERSION "0.9.11"
 
 /*
  * Mike Mirzayanov
@@ -63,6 +63,10 @@
  */
 
 const char* latestFeatures[] = {
+                          "Introduced split/tokenize functions to separate string by given char",
+                          "Introduced InStream::readUnsignedLong and InStream::readLong with unsigned long long paramerters",
+                          "Supported --testOverviewLogFileName for validator: bounds hits + features",
+                          "Fixed UB (sequence points) in random_t",
                           "POINTS_EXIT_CODE returned back to 7 (instead of 0)",
                           "Removed disable buffers for interactive problems, because it works unexpectedly in wine",
                           "InStream over string: constructor of InStream from base InStream to inherit policies and std::string",
@@ -132,20 +136,23 @@ const char* latestFeatures[] = {
 #include <cctype>
 #include <string>
 #include <vector>
+#include <map>
+#include <set>
 #include <cmath>
 #include <sstream>
 #include <fstream>
 #include <cstring>
 #include <limits>
 #include <stdarg.h>
-
 #include <fcntl.h>
 
 #if ( _WIN32 || __WIN32__ || _WIN64 || __WIN64__ )
 #   if !defined(_MSC_VER) || _MSC_VER>1400
+#       define NOMINMAX 1
 #       include <windows.h>
 #   else
 #       define WORD unsigned short
+#       include <unistd.h>
 #   endif
 #   include <io.h>
 #   define ON_WINDOWS
@@ -155,6 +162,10 @@ const char* latestFeatures[] = {
 
 #ifndef LLONG_MIN
 #define LLONG_MIN   (-9223372036854775807LL - 1)
+#endif
+
+#ifndef ULLONG_MAX
+#define ULLONG_MAX   (18446744073709551615)
 #endif
 
 #define LF ((char)10)
@@ -335,7 +346,64 @@ static double __testlib_nan()
 static bool __testlib_isInfinite(double r)
 {
     volatile double ra = r;
-    return (ra > 1E100 || ra < -1E100);
+    return (ra > 1E300 || ra < -1E300);
+}
+
+#ifdef __GNUC__
+__attribute__((const))
+#endif
+inline bool doubleCompare(double expected, double result, double MAX_DOUBLE_ERROR)
+{
+        if (__testlib_isNaN(expected))
+        {
+            return __testlib_isNaN(result);
+        }
+        else
+            if (__testlib_isInfinite(expected))
+            {
+                if (expected > 0)
+                {
+                    return result > 0 && __testlib_isInfinite(result);
+                }
+                else
+                {
+                    return result < 0 && __testlib_isInfinite(result);
+                }
+            }
+            else
+                if (__testlib_isNaN(result) || __testlib_isInfinite(result))
+                {
+                    return false;
+                }
+                else
+                if (__testlib_abs(result - expected) <= MAX_DOUBLE_ERROR + 1E-15)
+                {
+                    return true;
+                }
+                else
+                {
+                    double minv = __testlib_min(expected * (1.0 - MAX_DOUBLE_ERROR),
+                                 expected * (1.0 + MAX_DOUBLE_ERROR));
+                    double maxv = __testlib_max(expected * (1.0 - MAX_DOUBLE_ERROR),
+                                  expected * (1.0 + MAX_DOUBLE_ERROR));
+                    return result + 1E-15 >= minv && result <= maxv + 1E-15;
+                }
+}
+
+#ifdef __GNUC__
+__attribute__((const))
+#endif
+inline double doubleDelta(double expected, double result)
+{
+    double absolute = __testlib_abs(result - expected);
+
+    if (__testlib_abs(expected) > 1E-9)
+    {
+        double relative = __testlib_abs(absolute / expected);
+        return __testlib_min(absolute, relative);
+    }
+    else
+        return absolute;
 }
 
 #ifndef _fileno
@@ -453,7 +521,11 @@ private:
                 __testlib_fail("random_t::nextBits(int bits): n must be less than 64");
 
             int lowerBitCount = (random_t::version == 0 ? 31 : 32);
-            return ((nextBits(31) << 32) ^ nextBits(lowerBitCount));
+
+            long long left = (nextBits(31) << 32);
+            long long right = nextBits(lowerBitCount);
+
+            return left ^ right;
         }
     }
 
@@ -614,7 +686,9 @@ public:
     /* Random double value in range [0, 1). */
     double next()
     {
-        return (double)(((long long)(nextBits(26)) << 27) + nextBits(27)) / (double)(1LL << 53);
+        long long left = ((long long)(nextBits(26)) << 27);
+        long long right = nextBits(27);
+        return (double)(left + right) / (double)(1LL << 53);
     }
 
     /* Random double value in range [0, n). */
@@ -626,6 +700,8 @@ public:
     /* Random double value in range [from, to). */
     double next(double from, double to)
     {
+        if (from > to)
+            __testlib_fail("random_t::next(double from, double to): from can't not exceed to");
         return next(to - from) + from;
     }
 
@@ -822,18 +898,24 @@ public:
     /* Returns weighted random value in range [from, to]. */
     int wnext(int from, int to, int type)
     {
+        if (from > to)
+            __testlib_fail("random_t::wnext(int from, int to, int type): from can't not exceed to");
         return wnext(to - from + 1, type) + from;
     }
 
     /* Returns weighted random value in range [from, to]. */
     int wnext(unsigned int from, unsigned int to, int type)
     {
+        if (from > to)
+            __testlib_fail("random_t::wnext(unsigned int from, unsigned int to, int type): from can't not exceed to");
         return int(wnext(to - from + 1, type) + from);
     }
 
     /* Returns weighted random value in range [from, to]. */
     long long wnext(long long from, long long to, int type)
     {
+        if (from > to)
+            __testlib_fail("random_t::wnext(long long from, long long to, int type): from can't not exceed to");
         return wnext(to - from + 1, type) + from;
     }
 
@@ -848,6 +930,8 @@ public:
     /* Returns weighted random value in range [from, to]. */
     long wnext(long from, long to, int type)
     {
+        if (from > to)
+            __testlib_fail("random_t::wnext(long from, long to, int type): from can't not exceed to");
         return wnext(to - from + 1, type) + from;
     }
 
@@ -862,6 +946,8 @@ public:
     /* Returns weighted random double value in range [from, to). */
     double wnext(double from, double to, int type)
     {
+        if (from > to)
+            __testlib_fail("random_t::wnext(double from, double to, int type): from can't not exceed to");
         return wnext(to - from, type) + from;
     }
 
@@ -1326,15 +1412,16 @@ public:
         if (pos >= s.length())
             return EOFC;
         else
-        {
             return s[pos];
-        }
     }
 
     int nextChar()
     {
         if (pos >= s.length())
+        {
+            pos++;
             return EOFC;
+        }
         else
             return s[pos++];
     }
@@ -1659,6 +1746,7 @@ struct InStream
      * (strict mode is used in validators usually).
      */
     long long readLong();
+    unsigned long long readUnsignedLong();
     /*
      * Reads new int. Ignores white-spaces into the non-strict mode
      * (strict mode is used in validators usually).
@@ -1672,6 +1760,9 @@ struct InStream
 
     /* As "readLong()" but ensures that value in the range [minv,maxv]. */
     long long readLong(long long minv, long long maxv, const std::string& variableName = "");
+    unsigned long long readUnsignedLong(unsigned long long minv, unsigned long long maxv, const std::string& variableName = "");
+    unsigned long long readLong(unsigned long long minv, unsigned long long maxv, const std::string& variableName = "");
+
     /* As "readInteger()" but ensures that value in the range [minv,maxv]. */
     int readInteger(int minv, int maxv, const std::string& variableName = "");
     /* As "readInt()" but ensures that value in the range [minv,maxv]. */
@@ -1788,6 +1879,165 @@ random_t rnd;
 TTestlibMode testlibMode = _unknown;
 double __testlib_points = std::numeric_limits<float>::infinity();
 
+struct ValidatorBoundsHit
+{
+    static const double EPS;
+    bool minHit;
+    bool maxHit;
+
+    ValidatorBoundsHit(bool minHit = false, bool maxHit = false): minHit(minHit), maxHit(maxHit)
+    {
+    };
+
+    ValidatorBoundsHit merge(const ValidatorBoundsHit& validatorBoundsHit)
+    {
+        return ValidatorBoundsHit(
+            __testlib_max(minHit, validatorBoundsHit.minHit),
+            __testlib_max(maxHit, validatorBoundsHit.maxHit)
+        );
+    }
+};
+
+const double ValidatorBoundsHit::EPS = 1E-12;
+
+class Validator
+{
+private:
+    std::string _testset;
+    std::string _group;
+    std::string _testOverviewLogFileName;
+    std::map<std::string, ValidatorBoundsHit> _boundsHitByVariableName;
+    std::set<std::string> _features;
+    std::set<std::string> _hitFeatures;
+
+    bool isVariableNameBoundsAnalyzable(const std::string& variableName)
+    {
+        for (size_t i = 0; i < variableName.length(); i++)
+            if ((variableName[i] >= '0' && variableName[i] <= '9') || variableName[i] < ' ')
+                return false;
+        return true;
+    }
+
+    bool isFeatureNameAnalyzable(const std::string& featureName)
+    {
+        for (size_t i = 0; i < featureName.length(); i++)
+            if (featureName[i] < ' ')
+                return false;
+        return true;
+    }
+public:
+    Validator(): _testset("tests"), _group()
+    {
+    }
+
+    std::string testset() const
+    {
+        return _testset;
+    }
+
+    std::string group() const
+    {
+        return _group;
+    }
+
+    std::string testOverviewLogFileName() const
+    {
+        return _testOverviewLogFileName;
+    }
+
+    void setTestset(const char* const testset)
+    {
+        _testset = testset;
+    }
+
+    void setGroup(const char* const group)
+    {
+        _group = group;
+    }
+
+    void setTestOverviewLogFileName(const char* const testOverviewLogFileName)
+    {
+        _testOverviewLogFileName = testOverviewLogFileName;
+    }
+
+    void addBoundsHit(const std::string& variableName, ValidatorBoundsHit boundsHit)
+    {
+        if (isVariableNameBoundsAnalyzable(variableName))
+        {
+            _boundsHitByVariableName[variableName]
+                = boundsHit.merge(_boundsHitByVariableName[variableName]);
+        }
+    }
+
+    std::string getBoundsHitLog()
+    {
+        std::string result;
+        for (std::map<std::string, ValidatorBoundsHit>::iterator i = _boundsHitByVariableName.begin();
+            i != _boundsHitByVariableName.end();
+            i++)
+        {
+            result += "\"" + i->first + "\":";
+            if (i->second.minHit)
+                result += " min-value-hit";
+            if (i->second.maxHit)
+                result += " max-value-hit";
+            result += "\n";
+        }
+        return result;
+    }
+
+    std::string getFeaturesLog()
+    {
+        std::string result;
+        for (std::set<std::string>::iterator i = _features.begin();
+            i != _features.end();
+            i++)
+        {
+            result += "feature \"" + *i + "\":";
+            if (_hitFeatures.count(*i))
+                result += " hit";
+            result += "\n";
+        }
+        return result;
+    }
+
+    void writeTestOverviewLog()
+    {
+        if (!_testOverviewLogFileName.empty())
+        {
+            std::string fileName(_testOverviewLogFileName);
+            _testOverviewLogFileName = "";
+            FILE* testOverviewLogFile = fopen(fileName.c_str(), "w");
+            if (NULL == testOverviewLogFile)
+                __testlib_fail("Validator::writeTestOverviewLog: can't test overview log to (" + fileName + ")");
+            fprintf(testOverviewLogFile, "%s%s", getBoundsHitLog().c_str(), getFeaturesLog().c_str());
+            if (fclose(testOverviewLogFile))
+                __testlib_fail("Validator::writeTestOverviewLog: can't close test overview log file (" + fileName + ")");
+        }
+    }
+
+    void addFeature(const std::string& feature)
+    {
+        if (_features.count(feature))
+            __testlib_fail("Feature " + feature + " registered twice.");
+        if (!isFeatureNameAnalyzable(feature))
+            __testlib_fail("Feature name '" + feature + "' contains restricted characters.");
+
+        _features.insert(feature);
+    }
+
+    void feature(const std::string& feature)
+    {
+        if (!isFeatureNameAnalyzable(feature))
+            __testlib_fail("Feature name '" + feature + "' contains restricted characters.");
+
+        if (!_features.count(feature))
+            __testlib_fail("Feature " + feature + " didn't registered via addFeature(feature).");
+
+        _hitFeatures.insert(feature);
+    }
+} validator;
+
 struct TestlibFinalizeGuard
 {
     static bool alive;
@@ -1811,6 +2061,8 @@ struct TestlibFinalizeGuard
             if (testlibMode == _validator && readEofCount == 0 && quitCount == 0)
                 __testlib_fail("Validator must end with readEof call.");
         }
+
+        validator.writeTestOverviewLog();
     }
 };
 
@@ -1850,7 +2102,7 @@ static std::string toString(const T& t)
 
 InStream::InStream()
 {
-    // file = NULL;
+    reader = NULL;
     name = "";
     mode = _input;
     strict = false;
@@ -1915,6 +2167,29 @@ void InStream::textColor(
 #if defined(ON_WINDOWS) && (!defined(_MSC_VER) || _MSC_VER>1400)
     HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(handle, color);
+#endif
+#if !defined(ON_WINDOWS) && defined(__CNUC__)
+    if (isatty(2))
+    {
+        switch (color)
+        {
+        case LightRed:
+            fprintf(stderr, "\033[1;31m");
+            break;
+        case LightCyan:
+            fprintf(stderr, "\033[1;36m");
+            break;
+        case LightGreen:
+            fprintf(stderr, "\033[1;32m");
+            break;
+        case LightYellow:
+            fprintf(stderr, "\033[1;33m");
+            break;
+        case LightGray:
+        default:
+            fprintf(stderr, "\033[0m");
+        }
+    }
 #endif
 }
 
@@ -2372,6 +2647,36 @@ static inline bool equals(long long integer, const char* s)
     return length == 0;
 }
 
+#ifdef __GNUC__
+__attribute__((pure))
+#endif
+static inline bool equals(unsigned long long integer, const char* s)
+{
+    if (integer == ULLONG_MAX)
+        return strcmp(s, "18446744073709551615") == 0;
+
+    if (integer == 0ULL)
+        return strcmp(s, "0") == 0;
+
+    size_t length = strlen(s);
+
+    if (length == 0)
+        return false;
+
+    while (integer > 0)
+    {
+        int digit = int(integer % 10);
+
+        if (s[length - 1] != '0' + digit)
+            return false;
+
+        length--;
+        integer /= 10;
+    }
+
+    return length == 0;
+}
+
 static inline double stringToDouble(InStream& in, const char* buffer)
 {
     double retval;
@@ -2416,7 +2721,7 @@ static inline double stringToDouble(InStream& in, const char* buffer)
 
     if (scanned == 1 || (scanned == 2 && empty))
     {
-        if (__testlib_isNaN(retval) || __testlib_isInfinite(retval))
+        if (__testlib_isNaN(retval))
             in.quit(_pe, ("Expected double, but \"" + __testlib_part(buffer) + "\" found").c_str());
         return retval;
     }
@@ -2545,6 +2850,35 @@ static inline long long stringToLongLong(InStream& in, const char* buffer)
         in.quit(_pe, ("Expected int64, but \"" + __testlib_part(buffer) + "\" found").c_str());
 }
 
+static inline unsigned long long stringToUnsignedLongLong(InStream& in, const char* buffer)
+{
+    size_t length = strlen(buffer);
+
+    if (length > 20)
+        in.quit(_pe, ("Expected integer, but \"" + __testlib_part(buffer) + "\" found").c_str());
+    if (length > 1 && buffer[0] == '0')
+        in.quit(_pe, ("Expected integer, but \"" + __testlib_part(buffer) + "\" found").c_str());
+
+    unsigned long long retval = 0LL;
+    for (int i = 0; i < int(length); i++)
+    {
+        if (buffer[i] < '0' || buffer[i] > '9')
+            in.quit(_pe, ("Expected integer, but \"" + __testlib_part(buffer) + "\" found").c_str());
+        retval = retval * 10 + (buffer[i] - '0');
+    }
+
+    if (length < 19)
+        return retval;
+
+    if (length == 20 && strcmp(buffer, "18446744073709551615") == 1)
+        in.quit(_pe, ("Expected unsigned int64, but \"" + __testlib_part(buffer) + "\" found").c_str());
+
+    if (equals(retval, buffer))
+        return retval;
+    else
+        in.quit(_pe, ("Expected unsigned int64, but \"" + __testlib_part(buffer) + "\" found").c_str());
+}
+
 int InStream::readInteger()
 {
     if (!strict && seekEof())
@@ -2569,6 +2903,16 @@ long long InStream::readLong()
     return stringToLongLong(*this, _tmpReadToken.c_str());
 }
 
+unsigned long long InStream::readUnsignedLong()
+{
+    if (!strict && seekEof())
+        quit(_unexpected_eof, "Unexpected end of file - int64 expected");
+
+    readWordTo(_tmpReadToken);
+
+    return stringToUnsignedLongLong(*this, _tmpReadToken.c_str());
+}
+
 long long InStream::readLong(long long minv, long long maxv, const std::string& variableName)
 {
     long long result = readLong();
@@ -2581,7 +2925,33 @@ long long InStream::readLong(long long minv, long long maxv, const std::string& 
             quit(_wa, ("Integer parameter [name=" + variableName + "] equals to " + vtos(result) + ", violates the range [" + vtos(minv) + ", " + vtos(maxv) + "]").c_str());
     }
 
+    if (strict && !variableName.empty())
+        validator.addBoundsHit(variableName, ValidatorBoundsHit(minv == result, maxv == result));
+
     return result;
+}
+
+unsigned long long InStream::readUnsignedLong(unsigned long long minv, unsigned long long maxv, const std::string& variableName)
+{
+    unsigned long long result = readUnsignedLong();
+
+    if (result < minv || result > maxv)
+    {
+        if (variableName.empty())
+            quit(_wa, ("Integer " + vtos(result) + " violates the range [" + vtos(minv) + ", " + vtos(maxv) + "]").c_str());
+        else
+            quit(_wa, ("Integer parameter [name=" + variableName + "] equals to " + vtos(result) + ", violates the range [" + vtos(minv) + ", " + vtos(maxv) + "]").c_str());
+    }
+
+    if (strict && !variableName.empty())
+        validator.addBoundsHit(variableName, ValidatorBoundsHit(minv == result, maxv == result));
+
+    return result;
+}
+
+unsigned long long InStream::readLong(unsigned long long minv, unsigned long long maxv, const std::string& variableName)
+{
+    return readUnsignedLong(minv, maxv, variableName);
 }
 
 int InStream::readInt()
@@ -2600,6 +2970,9 @@ int InStream::readInt(int minv, int maxv, const std::string& variableName)
         else
             quit(_wa, ("Integer parameter [name=" + std::string(variableName) + "] equals to " + vtos(result) + ", violates the range [" + vtos(minv) + ", " + vtos(maxv) + "]").c_str());
     }
+
+    if (strict && !variableName.empty())
+        validator.addBoundsHit(variableName, ValidatorBoundsHit(minv == result, maxv == result));
 
     return result;
 }
@@ -2634,6 +3007,12 @@ double InStream::readReal(double minv, double maxv, const std::string& variableN
             quit(_wa, ("Double parameter [name=" + variableName + "] equals to " + vtos(result) + ", violates the range [" + vtos(minv) + ", " + vtos(maxv) + "]").c_str());
     }
 
+    if (strict && !variableName.empty())
+        validator.addBoundsHit(variableName, ValidatorBoundsHit(
+            doubleDelta(minv, result) < ValidatorBoundsHit::EPS,
+            doubleDelta(maxv, result) < ValidatorBoundsHit::EPS
+        ));
+
     return result;
 }
 
@@ -2659,6 +3038,12 @@ double InStream::readStrictReal(double minv, double maxv,
         else
             quit(_wa, ("Strict double parameter [name=" + variableName + "] equals to " + vtos(result) + ", violates the range [" + vtos(minv) + ", " + vtos(maxv) + "]").c_str());
     }
+
+    if (strict && !variableName.empty())
+        validator.addBoundsHit(variableName, ValidatorBoundsHit(
+            doubleDelta(minv, result) < ValidatorBoundsHit::EPS,
+            doubleDelta(maxv, result) < ValidatorBoundsHit::EPS
+        ));
 
     return result;
 }
@@ -2982,7 +3367,7 @@ NORETURN void __testlib_help()
 {
     InStream::textColor(InStream::LightCyan);
     std::fprintf(stderr, "TESTLIB %s, http://code.google.com/p/testlib/ ", VERSION);
-    std::fprintf(stderr, "by Mike Mirzayanov, copyright(c) 2005-2014\n");
+    std::fprintf(stderr, "by Mike Mirzayanov, copyright(c) 2005-2015\n");
     std::fprintf(stderr, "Checker name: \"%s\"\n", checkerName.c_str());
     InStream::textColor(InStream::LightGray);
 
@@ -3130,6 +3515,53 @@ void registerValidation()
     inf.strict = true;
 }
 
+void registerValidation(int argc, char* argv[])
+{
+    registerValidation();
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (!strcmp("--testset", argv[i]))
+        {
+            if (i + 1 < argc && strlen(argv[i + 1]) > 0)
+                validator.setTestset(argv[++i]);
+            else
+                quit(_fail, std::string("Validator must be run with the following arguments: ") +
+                        "[--testset testset] [--group group] [--testOverviewLogFileName fileName]");
+        }
+        if (!strcmp("--group", argv[i]))
+        {
+            if (i + 1 < argc)
+                validator.setGroup(argv[++i]);
+            else
+                quit(_fail, std::string("Validator must be run with the following arguments: ") +
+                        "[--testset testset] [--group group] [--testOverviewLogFileName fileName]");
+        }
+        if (!strcmp("--testOverviewLogFileName", argv[i]))
+        {
+            if (i + 1 < argc)
+                validator.setTestOverviewLogFileName(argv[++i]);
+            else
+                quit(_fail, std::string("Validator must be run with the following arguments: ") +
+                        "[--testset testset] [--group group] [--testOverviewLogFileName fileName]");
+        }
+    }
+}
+
+void addFeature(const std::string& feature)
+{
+    if (testlibMode != _validator)
+        quit(_fail, "Features are supported in validators only.");
+    validator.addFeature(feature);
+}
+
+void feature(const std::string& feature)
+{
+    if (testlibMode != _validator)
+        quit(_fail, "Features are supported in validators only.");
+    validator.feature(feature);
+}
+
 void registerTestlibCmd(int argc, char* argv[])
 {
     __testlib_ensuresPreconditions();
@@ -3197,63 +3629,6 @@ void registerTestlib(int argc, ...)
 
     registerTestlibCmd(argc + 1, argv);
     delete[] argv;
-}
-
-#ifdef __GNUC__
-__attribute__((const))
-#endif
-inline bool doubleCompare(double expected, double result, double MAX_DOUBLE_ERROR)
-{
-        if (__testlib_isNaN(expected))
-        {
-            return __testlib_isNaN(result);
-        }
-        else
-            if (__testlib_isInfinite(expected))
-            {
-                if (expected > 0)
-                {
-                    return result > 0 && __testlib_isInfinite(result);
-                }
-                else
-                {
-                    return result < 0 && __testlib_isInfinite(result);
-                }
-            }
-            else
-                if (__testlib_isNaN(result) || __testlib_isInfinite(result))
-                {
-                    return false;
-                }
-                else
-                if (__testlib_abs(result - expected) <= MAX_DOUBLE_ERROR + 1E-15)
-                {
-                    return true;
-                }
-                else
-                {
-                    double minv = __testlib_min(expected * (1.0 - MAX_DOUBLE_ERROR),
-                                 expected * (1.0 + MAX_DOUBLE_ERROR));
-                    double maxv = __testlib_max(expected * (1.0 - MAX_DOUBLE_ERROR),
-                                  expected * (1.0 + MAX_DOUBLE_ERROR));
-                    return result + 1E-15 >= minv && result <= maxv + 1E-15;
-                }
-}
-
-#ifdef __GNUC__
-__attribute__((const))
-#endif
-inline double doubleDelta(double expected, double result)
-{
-    double absolute = __testlib_abs(result - expected);
-
-    if (__testlib_abs(expected) > 1E-9)
-    {
-        double relative = __testlib_abs(absolute / expected);
-        return __testlib_min(absolute, relative);
-    }
-    else
-        return absolute;
 }
 
 static inline void __testlib_ensure(bool cond, const std::string& msg)
@@ -3452,6 +3827,104 @@ template <typename _Collection>
 std::string join(const _Collection& collection)
 {
     return join(collection, ' ');
+}
+
+/**
+ * Splits string s by character separator returning exactly k+1 items,
+ * where k is the number of separator occurences.
+ */
+std::vector<std::string> split(const std::string& s, char separator)
+{
+    std::vector<std::string> result;
+    std::string item;
+    for (size_t i = 0; i < s.length(); i++)
+        if (s[i] == separator)
+        {
+            result.push_back(item);
+            item = "";
+        }
+        else
+            item += s[i];
+    result.push_back(item);
+    return result;
+}
+
+/**
+ * Splits string s by character separators returning exactly k+1 items,
+ * where k is the number of separator occurences.
+ */
+std::vector<std::string> split(const std::string& s, const std::string& separators)
+{
+    if (separators.empty())
+        return std::vector<std::string>(1, s);
+
+    std::vector<bool> isSeparator(256);
+    for (size_t i = 0; i < separators.size(); i++)
+        isSeparator[(unsigned char)(separators[i])] = true;
+
+    std::vector<std::string> result;
+    std::string item;
+    for (size_t i = 0; i < s.length(); i++)
+        if (isSeparator[(unsigned char)(s[i])])
+        {
+            result.push_back(item);
+            item = "";
+        }
+        else
+            item += s[i];
+    result.push_back(item);
+    return result;
+}
+
+/**
+ * Splits string s by character separator returning non-empty items.
+ */
+std::vector<std::string> tokenize(const std::string& s, char separator)
+{
+    std::vector<std::string> result;
+    std::string item;
+    for (size_t i = 0; i < s.length(); i++)
+        if (s[i] == separator)
+        {
+            if (!item.empty())
+                result.push_back(item);
+            item = "";
+        }
+        else
+            item += s[i];
+    if (!item.empty())
+        result.push_back(item);
+    return result;
+}
+
+/**
+ * Splits string s by character separators returning non-empty items.
+ */
+std::vector<std::string> tokenize(const std::string& s, const std::string& separators)
+{
+    if (separators.empty())
+        return std::vector<std::string>(1, s);
+
+    std::vector<bool> isSeparator(256);
+    for (size_t i = 0; i < separators.size(); i++)
+        isSeparator[(unsigned char)(separators[i])] = true;
+
+    std::vector<std::string> result;
+    std::string item;
+    for (size_t i = 0; i < s.length(); i++)
+        if (isSeparator[(unsigned char)(s[i])])
+        {
+            if (!item.empty())
+                result.push_back(item);
+            item = "";
+        }
+        else
+            item += s[i];
+
+    if (!item.empty())
+        result.push_back(item);
+
+    return result;
 }
 
 NORETURN void __testlib_expectedButFound(TResult result, std::string expected, std::string found, const char* prepend)
