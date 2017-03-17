@@ -10,7 +10,7 @@ bool tryReadTokenTo(std::string& s, InStream& stream) {
 }
 
 int main(int argc, char* argv[ ]) {
-    setName("compare lines as sequences of tokens, returning PE if their lengths differ");
+    setName("compare lines as sequences of tokens");
     registerTestlibCmd(argc, argv);
 
     int n = 1, m = 0, lastLine = 0;

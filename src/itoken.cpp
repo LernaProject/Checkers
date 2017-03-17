@@ -2,13 +2,11 @@
 #include <sstream>
 #include <string>
 
-using namespace std;
-
 char toLower(char c) {
     return c >= 'A' && c <= 'Z' ? char(c | 0x20) : c;
 }
 
-bool icompare(const string& a, const string& b) {
+bool icompare(const std::string& a, const std::string& b) {
     if (a.length() != b.length())
         return false;
     for (size_t i = 0; i < a.length(); i++)
@@ -22,8 +20,8 @@ int main(int argc, char* argv[ ]) {
     registerTestlibCmd(argc, argv);
 
     int n = 0;
-    string j, p;
-    ostringstream repr;
+    std::string j, p;
+    std::ostringstream repr;
 
     while (!ans.seekEof()) {
         n++;

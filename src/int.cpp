@@ -2,9 +2,7 @@
 #include <sstream>
 #include <string>
 
-using namespace std;
-
-void readBigIntTo(string& s, InStream& stream) {
+void readBigIntTo(std::string& s, InStream& stream) {
     stream.readTokenTo(s);
     size_t i = s.front() == '-';
     if (i == s.length())
@@ -24,8 +22,8 @@ int main(int argc, char* argv[ ]) {
     registerTestlibCmd(argc, argv);
 
     int n = 0;
-    string j, p;
-    ostringstream repr;
+    std::string j, p;
+    std::ostringstream repr;
 
     while (!ans.seekEof()) {
         n++;

@@ -5,12 +5,10 @@
 #define YES "YES"
 #define NO  "NO"
 
-using namespace std;
-
 bool readYesNo(InStream& stream) {
-    static string s;
+    static std::string s;
     stream.readTokenTo(s);
-    string upper = upperCase(s);
+    std::string upper = upperCase(s);
     if (upper == YES)
         return true;
     if (upper == NO)
@@ -46,7 +44,7 @@ int main(int argc, char* argv[ ]) {
     if (n == 1)
         quit(_ok, p ? YES : NO);
     else if (n <= 5) {
-        ostringstream ss;
+        std::ostringstream ss;
         ss << (mask & 0x2 ? YES : NO);
         for (int i = 2; i <= n; i++)
             ss << ' ' << (mask & 1 << i ? YES : NO);
