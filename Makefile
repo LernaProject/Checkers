@@ -7,7 +7,7 @@ HEADERS := $(wildcard $(SRC)/*.h)
 OBJECTS := $(foreach EXT,cpp sh,$(patsubst $(SRC)/%.$(EXT),$(BUILD)/%,$(wildcard $(SRC)/*.$(EXT))))
 OBJECTS := $(filter-out $(BUILD)/float,$(OBJECTS))
 OBJECTS += $(foreach N,$(shell seq 1 10),$(BUILD)/float$N)
-CXXFLAGS := -std=c++11 -O2
+CXXFLAGS := -std=c++11 -O2 -march=native -mfpmath=sse -pipe
 CXXFLAGS += -Wall -Wextra -pedantic -Wformat=2 -Wfloat-equal -Wlogical-op -Wredundant-decls
 CXXFLAGS += -Wconversion -Wcast-qual -Wcast-align -Wuseless-cast -Wno-unused-local-typedefs
 
