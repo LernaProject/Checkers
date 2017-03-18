@@ -14,6 +14,8 @@ To compile checkers, run `make -j4`. You'll be given tons of warnings, unless th
   but **not** line breaks.
 * `yesno`, `exactyesno` — Compares two sequences of `YES` and `NO`, case-insensitive.
 * `int`, `exactint` — Compares two sequences of arbitrary-length signed integral numbers.
+* `intline`, `exactintline` — Compares two sequences of arbitrary-length signed integral numbers,
+  ignoring whitespace but **not** line breaks.
 * `float1` – `float10` — Compares two sequences of real numbers. Absolute or relative error between
   corresponding elements must not exceed 10<sup>-N</sup>.
 * `ok` — A stub checker that always returns `OK`.

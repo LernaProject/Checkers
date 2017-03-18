@@ -1,7 +1,7 @@
 .PHONY: all clean
 
-SRC   = src
-BUILD = bin
+SRC   := src
+BUILD := bin
 
 HEADERS := $(wildcard $(SRC)/*.h)
 OBJECTS := $(foreach EXT,cpp sh,$(patsubst $(SRC)/%.$(EXT),$(BUILD)/%,$(wildcard $(SRC)/*.$(EXT))))
@@ -28,11 +28,11 @@ $(BUILD)/float%: $(SRC)/float.cpp $(HEADERS)
 
 $(BUILD)/%: $(SRC)/%.sh
 	@mkdir -p $(@D)
-	ln -s ../$< $@
+	ln -sf ../$< $@
 
 $(BUILD)/ok: $(shell which true)
 	@mkdir -p $(@D)
-	ln -s $< $@
+	ln -sf $< $@
 
 clean:
 	rm -rf $(BUILD)
